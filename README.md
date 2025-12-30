@@ -1,2 +1,1 @@
-# project-ai
-Python Django
+#화이팅
