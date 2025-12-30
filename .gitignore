@@ -1,0 +1,23 @@
+# .gitignore
+# . pyc
+__pycache__/
+
+.venv/
+.vscode
+
+/bin/
+/lib/
+/include/
+
+build/
+dist/
+
+#*.log
+#*.sqlite3
+
+.env
+
+# 데이터 파일
+db.sqlite3
+data/*.csv
+.DS_Store
