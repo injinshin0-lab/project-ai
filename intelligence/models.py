@@ -9,6 +9,9 @@ class Bg_Product(models.Model):
     name = models.CharField(max_length=255, null=True, blank=True)
     class Meta:
         db_table = 'Bg_Product'
+    def __str__(self):
+        return self.name
+
 
 # 2. 소분류 카테고리 매핑 (관심분야)
 class Bg_Category_product(models.Model):
