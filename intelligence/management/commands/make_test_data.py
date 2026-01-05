@@ -84,31 +84,42 @@ class Command(BaseCommand):
                 user_int_map.append((u_id, c_id))
         cursor.executemany("INSERT INTO bg_user_category_mapping (user_id, interest_category_id) VALUES (?,?)", user_int_map)
 
-        # 6. 행동 데이터 생성 (유저 취향 그룹화 유지)
+        # 6. 행동 데이터 생성 (피어슨 알고리즘 최적화 버전)
         wish_data, cart_data, recent_data, review_data, orders, order_items = [], [], [], [], [], []
         o_id, oi_id = 1, 1
 
         for u_id in range(1, 101):
-            # 그룹화 로직
-            if u_id <= 20: p_range = range(1, 101)
-            elif u_id <= 40: p_range = range(101, 201)
-            elif u_id <= 60: p_range = range(201, 301)
-            elif u_id <= 80: p_range = range(301, 401)
-            else: p_range = range(401, 501)
+            # [수정 1] 유저별 상품 범위를 좁게 설정하여 교집합 유도
+            if u_id <= 20: p_range = range(1, 41)
+            elif u_id <= 40: p_range = range(41, 81)
+            elif u_id <= 60: p_range = range(81, 121)
+            elif u_id <= 80: p_range = range(121, 161)
+            else: p_range = range(161, 201)
 
-            target_products = random.sample(p_range, 15) + random.sample(range(1, 501), 3)
+            # [수정 2] 좁은 범위 안에서 넉넉하게 상품 선택 (25개)
+            target_products = random.sample(p_range, 25)
             
             for p_id in target_products:
                 prob = random.random()
                 recent_data.append((u_id, p_id))
-                if prob < 0.4: wish_data.append((u_id, p_id))
-                if prob < 0.2: cart_data.append((u_id, p_id, 1))
-                if prob < 0.1:
-                    rating = random.choices([3, 4, 5], weights=[2, 3, 5])[0]
-                    review_data.append((p_id, u_id, "좋아요!", float(rating)))
+                
+                # [수정 3] 높은 확률로 다양한 행동을 섞어서 점수 분산을 만듦
+                if prob < 0.8: # 찜 (기본 가중치용)
+                    wish_data.append((u_id, p_id))
+                
+                if prob < 0.6: # 장바구니
+                    cart_data.append((u_id, p_id, 1))
+                
+                if prob < 0.4: # 리뷰 및 주문 (여기서 소수점 랜덤 점수 부여)
+                    # 별점을 3.0 ~ 5.0 사이의 실수로 랜덤하게 부여 (피어슨 분산 확보의 핵심)
+                    rating = round(random.uniform(3.0, 5.0), 2)
+                    review_data.append((p_id, u_id, "추천합니다!", rating))
+                    
+                    # 주문 데이터 생성
                     orders.append((o_id, u_id, 1, 'COMPLETED', datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'CARD', 'PAID', 10000))
                     order_items.append((oi_id, o_id, p_id, 1, 10000))
-                    o_id += 1; oi_id += 1
+                    o_id += 1
+                    oi_id += 1
 
         # 일괄 삽입
         cursor.executemany("INSERT INTO bg_wishlist (user_id, product_id) VALUES (?, ?)", wish_data)

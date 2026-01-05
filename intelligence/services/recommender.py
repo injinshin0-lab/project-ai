@@ -142,57 +142,98 @@ class AiRecommender:
 
     def run_analysis(self):
         # 3단계 협업 필터링 연산 수행
-        # (피어슨 상관계수 + 가중 평균 적용)
         if not os.path.exists(self.processed_csv): return
-
         df = pd.read_csv(self.processed_csv)
 
+        # 1. 피벗 테이블 생성 (사용자 x 아이템)
+        # 결측치는 0으로 채우지 않고 NaN 상태로 (계산 시 제외하기 위함)
         pivot = df.pivot_table(index='user_id', columns='product_id', values='rating')
 
-        # 1. 유사도 계산: 피어슨 상관계수 (Pearson Correlation)
-        user_sim_df = pivot.T.corr(method='pearson')
+        # 2. 사용자별  평균 평점 계산
+        user_means = pivot.mean(axis=1)
 
-        # # 정규화 (사용자 기준)
-        # pivot_scaled = pivot.apply(lambda x: (x - x.min()) / (x.max() - x.min()) if (x.max() - x.min()) != 0 else x, axis=1)
-        # # 코사인 유사도 연산
-        # user_sim = cosine_similarity(csr_matrix(pivot_scaled.values))
-        # user_sim_df = pd.DataFrame(user_sim, index=pivot.index, columns=pivot.index)
+        # 3. 코사인 유사도 계산을 위해 결측치를 0으로 채운 데이터 준비
+        pivot_filled = pivot.fillna(0)
+
+        # 4. 코사인 유사도 계산
+        from sklearn.metrics.pairwise import cosine_similarity
+        user_sim = cosine_similarity(pivot_filled)
+        user_sim_df = pd.DataFrame(user_sim, index=pivot.index, columns=pivot.index)
+
+        # 성능을 위해 모든 상품의 카데고리 정보를 딕셔너리로 미리 로드
+        # Bg_Product_Category_Mapping 모델 사용
+        product_cat_map = {
+            m.product_id: m.category_id
+            for m in Bg_Product_Category_Mapping.objects.all()
+        }
 
         result = []
+        # K-최근접 이웃 수 설정 (예: 나랑 가장 비슷한 10명)
+        K = 10
+
         for u_id in pivot.index:
-            sim_scores = user_sim_df[u_id].drop(index=u_id).dropna()
+            # 현재 유저가 설정한 관심 카테고리 ID들을 세트로 저장
+            user_interests = set(Bg_User_interest.objects.filter(
+                user_id=u_id
+            ).values_list('interest_category_id', flat=True))
 
-            # 유사도가 0보다 큰(취향이 겹치는) 유저들만 사용 (이미지의 U3, U4 같은 역할)
+            # 나 자신을 제외하고 유사도가 높은 순으로 정렬된 이웃 추출
+            sim_scores = user_sim_df[u_id].drop(index=u_id).sort_values(ascending=False)
+            
+            # 유사도가 0보다 큰 상위 K명의 이웃(Neighborhood) 선정
+            nearest_neighbors = sim_scores[sim_scores > 0].head(K)
+            
+            if nearest_neighbors.empty: continue
 
-            similar_users = sim_scores[sim_scores > 0]
+            # 내가 아직 평가하지 않은 아이템(결측치) 찾기
+            user_ratings = pivot.loc[u_id]
+            unseen_items = user_ratings[user_ratings.isna()].index
 
-            if similar_users.empty: continue
-
-            # 내가 안 본 상품들 추출
-            user_seen = pivot.loc[u_id]
-            unseen_ids = user_seen[user_seen == 0].index
-
-            for p_id in unseen_ids:
-                # 해당 상품에 점수를 남긴 유사 유저들의 평점 추출
-                product_ratings = pivot.loc[similar_users.index, p_id].dropna()
-
-                if not product_ratings.empty:
-                    # 유효한 유사 유저들의 유사도(가중치) 추출
-                    relevant_sims = similar_users.loc[product_ratings.index]
-
-                    # [핵심] 가중 평균 공식 적용: sum(유사도 * 평점) / sum(유사도 합)
-                    weighted_sum = (product_ratings * relevant_sims).sum()
+            for p_id in unseen_items:
+                # 이웃들 중 해당 아이템에 점수를 남긴 사람들만 추출
+                neighbor_ratings = pivot.loc[nearest_neighbors.index, p_id].dropna()
+                
+                if not neighbor_ratings.empty:
+                    # 해당 이웃들의 유사도 값 추출
+                    relevant_sims = nearest_neighbors.loc[neighbor_ratings.index]
+                    
+                    # 예측 평점 = 나의 평균 + (이웃들의 (평점-평균) 가중합 / 유사도 합)
+                    weighted_diff_sum = 0
+                    for neighbor_id, rating in neighbor_ratings.items():
+                        # 이웃의 평점에서 해당 이웃의 평균을 뺌 (평균 보정)
+                        diff = rating - user_means[neighbor_id]
+                        weighted_diff_sum += diff * relevant_sims[neighbor_id]
+                    
                     sim_sum = relevant_sims.abs().sum()
 
                     if sim_sum > 0:
-                        # 아주 정밀한 소수점 점수 생성
-                        predicted_score = weighted_sum / sim_sum
-                        result.append({'userid': u_id, 'product_id' : p_id, 'score': round(predicted_score, 4)})
+                        # 1. 사용자 기반 예측 점수 (CF Score)
+                        cf_score = user_means[u_id] + (weighted_diff_sum / sim_sum)
 
-        # 상위 점수 순으로 정렬하여 저장
+                        # 2. 아이템 기반 가산점 (Category Bonus)
+                        # 상품 카테고리가 유저의 관심사 리스트에 있으면 가산점 부여
+                        category_bonus = 0
+                        if product_cat_map.get(p_id) in user_interests:
+                            category_bonus = 2.0
+                        
+                        # 3. 최종 하이브리드 점수
+                        final_score = cf_score + category_bonus
+
+                        # 나의 평균에 보정된 가중합을 더함
+                        result.append({
+                            'userid': u_id, 
+                            'product_id': p_id, 
+                            'score': round(final_score, 4)
+                        })
+
+        if not result:
+            print("!!! 알림: 추천 결과가 비어있습니다.")
+            return
+
+        # 최종 결과 저장
         res_df = pd.DataFrame(result).sort_values(by=['userid', 'score'], ascending=[True, False])
         res_df.to_csv(self.result_csv, index=False)
-        print("--- 추천 분석 완료 ---")
+        print(f"--- 분석 완료: {len(res_df)}건 생성 ---")
 
     def save_results_to_db(self):
         # 3단계: 결과 csv를 DB 테이블에 저장
