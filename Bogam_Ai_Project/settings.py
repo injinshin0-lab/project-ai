@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'intelligence',
+    'data_manager', 
 ]
 
 MIDDLEWARE = [
@@ -83,7 +84,7 @@ WSGI_APPLICATION = 'Bogam_Ai_Project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': BASE_DIR.parent / 'project-back' / 'db' / 'project.db',
     }
 }
 
