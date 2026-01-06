@@ -13,9 +13,9 @@
 * 과일상품
   * python manage.py insert_fruits
 * 과일
-  * python manage.py insert_category_mapping.py
+  * python manage.py insert_category_mapping
 * 유저 및 유저행동(주문,찜,장바구니,최근본,리뷰)
-  * python manage.py insert_user_actions.py
+  * python manage.py insert_user_actions
 
 
 현재 주문, 찜, 장바구니, 최근목록, 리뷰를 바탕으로한 사용자 분석
