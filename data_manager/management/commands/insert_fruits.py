@@ -17,12 +17,16 @@ class Command(BaseCommand):
             cursor.execute("DELETE FROM sqlite_sequence WHERE name='Bg_Product';")
 
         # 2. 알려주신 구조로 경로 수정
-        # bogam/fruits-360-100x100-main/Training
-        project_root = settings.BASE_DIR
+        # bogam/project-back/uploads/product/fruits-360-100x100-main/Training
+        project_root = settings.BASE_DIR  # project-ai 위치
+        
         dataset_base_path = os.path.join(
-            project_root.parent, 
-            "fruits-360-100x100-main", 
-            "Training"
+            project_root.parent,            # bogam 폴더로 이동
+            "project-back",                 # project-back 폴더 진입
+            "uploads",                      # uploads 폴더 진입
+            "product",                      # product 폴더 진입
+            "fruits-360-100x100-main",      # 이미지 데이터셋 루트
+            "Training"                      # 실제 이미지들이 있는 폴더
         )
 
         if not os.path.exists(dataset_base_path):
@@ -63,7 +67,7 @@ class Command(BaseCommand):
                     break
             
             p_name = f"{random.choice(locations)} {random.choice(qualities)} {kor_base}"
-            image_url = f"images/fruits-360/{class_name}/0_100.jpg"
+            image_url = f"fruits-360-100x100-main/Training/{class_name}/0_100.jpg"
             
             # [수정됨] 모델의 실제 필드명과 일치시킴
             new_products.append(Bg_Product(
