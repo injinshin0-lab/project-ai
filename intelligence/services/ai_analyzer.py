@@ -25,7 +25,7 @@ class AiRecommender:
             
     def collect_data(self):
         # """2단계: 장고 DB의 행동 데이터를 수집하여 가중치 점수 합산"""
-        w = {'order': 5.0, 'wish': 3.0, 'cart': 2.0, 'recent': 1.0}
+        w = {'order': 5.0, 'wish': 3.0, 'cart': 3.5, 'recent': 0.5}
         all_data = []
 
         # 주문(order) 데이터 수집 (Bg_Order_item -> Bg_Order 연결)
@@ -147,8 +147,8 @@ class AiRecommender:
                         # 상품 카테고리가 유저의 관심사 리스트에 있으면 가산점 부여
                         category_bonus = 0
                         if product_cat_map.get(p_id) in user_interests:
-                            # 카테고리 점수 +2.0
-                            category_bonus = 2.0
+                            # 카테고리 점수 + 1.5
+                            category_bonus = 1.5
                         
                         # 3. 최종 하이브리드 점수
                         final_score = cf_score + category_bonus

@@ -17,7 +17,8 @@ project.db        # 우리가 사용하는 메인 DB 파일명
 *.log
 
 # 분석 결과 데이터
-data/*.csv
+data/*
+!data/.gitkeep
 processed_ratings.csv    # 혹시 폴더 밖에 있다면 직접 지정
 final_recommendations.csv
 

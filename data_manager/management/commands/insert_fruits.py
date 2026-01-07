@@ -6,7 +6,7 @@ from django.db import connection
 from data_manager.models import Bg_Product
 
 class Command(BaseCommand):
-    help = 'bogam/fruits-360-100x100-main/Training 경로를 읽어 상품 데이터를 생성합니다.'
+    help = 'bogam/project-back/uploads/product/fruits-360-100x100-main/Training 경로를 읽어 상품 데이터를 생성합니다.'
 
     def handle(self, *args, **options):
         # 1. 기존 데이터 초기화
@@ -16,8 +16,7 @@ class Command(BaseCommand):
         with connection.cursor() as cursor:
             cursor.execute("DELETE FROM sqlite_sequence WHERE name='Bg_Product';")
 
-        # 2. 알려주신 구조로 경로 수정
-        # bogam/project-back/uploads/product/fruits-360-100x100-main/Training
+        # 2. 정확한 실제 물리 경로 설정
         project_root = settings.BASE_DIR  # project-ai 위치
         
         dataset_base_path = os.path.join(
@@ -30,11 +29,10 @@ class Command(BaseCommand):
         )
 
         if not os.path.exists(dataset_base_path):
-            self.stdout.write(self.style.ERROR(f'여전히 경로를 찾을 수 없습니다: {dataset_base_path}'))
-            self.stdout.write('폴더명을 다시 한번 확인해주세요.')
+            self.stdout.write(self.style.ERROR(f'경로를 찾을 수 없습니다: {dataset_base_path}'))
             return
 
-        # 3. 번역 및 수식어 설정 (이전과 동일)
+        # 3. 번역 및 수식어 설정
         translation_table = {
             "Apple": "사과", "Apricot": "살구", "Avocado": "아보카도", "Banana": "바나나",
             "Beetroot": "비트", "Blueberry": "블루베리", "Cactus": "선인장열매", "Cantaloupe": "멜론",
@@ -59,6 +57,16 @@ class Command(BaseCommand):
 
         new_products = []
         for class_name in classes:
+            class_dir_path = os.path.join(dataset_base_path, class_name)
+            # 해당 폴더 안의 파일 목록을 가져옴
+            files = os.listdir(class_dir_path)
+            
+            if not files:
+                continue
+            
+            # 실제 존재하는 첫 번째 파일명을 가져옴 (예: r0_0_100.jpg 또는 0_100.jpg)
+            actual_file_name = files[0]
+
             kor_base = class_name
             for eng, kor in translation_table.items():
                 if eng in class_name:
@@ -67,15 +75,16 @@ class Command(BaseCommand):
                     break
             
             p_name = f"{random.choice(locations)} {random.choice(qualities)} {kor_base}"
-            image_url = f"fruits-360-100x100-main/Training/{class_name}/0_100.jpg"
             
-            # [수정됨] 모델의 실제 필드명과 일치시킴
+            # DB에 저장될 URL 경로 (Spring Boot의 /uploads/** 매핑과 맞춤)
+            # 결과 예: product/fruits-360-100x100-main/Training/Apple10/r0_0_100.jpg
+            image_url = f"product/fruits-360-100x100-main/Training/{class_name}/{actual_file_name}"
+            
             new_products.append(Bg_Product(
-                product_name=p_name,  # name -> product_name
+                product_name=p_name,
                 price=random.randint(5, 50) * 1000,
                 image_url=image_url,
                 content=f"신선한 {kor_base}입니다. 산지에서 직접 배송해 드립니다."
-                # origin_name은 현재 모델에 없으므로 제외하거나 models.py에 추가 후 사용하세요.
             ))
 
         created_objs = Bg_Product.objects.bulk_create(new_products)
