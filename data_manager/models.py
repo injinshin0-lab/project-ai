@@ -3,6 +3,11 @@ from django.db import models
 class Bg_Product(models.Model):
     product_name = models.CharField(max_length=255)
     content = models.TextField(null=True, blank=True)
+
+
+    product_status = models.CharField(max_length=50, default='SALE')
+    origin_name = models.CharField(max_length=100, blank=True, null=True)
+
     image_url = models.CharField(max_length=500, null=True, blank=True)
     price = models.IntegerField() # 생성 앱에서는 price를 채워야 하므로 정의!
 
