@@ -10,6 +10,9 @@
 
 
 * 데이터 생성기 명령(순서대로 권장)
+* 모델 마이그레이션
+  * python manage.py makemigrations data_manager
+  * python manage.py migrate data_manager
 * 과일상품
   * python manage.py insert_fruits
 * 과일
