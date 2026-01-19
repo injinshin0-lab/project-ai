@@ -5,10 +5,6 @@
   * pip install -r requirements.txt
 
 
-* AI알고리즘 실행
-  * python manage.py run_ai
-
-
 * 데이터 생성기 명령(순서대로 권장)
 * 모델 마이그레이션
   * python manage.py makemigrations data_manager
@@ -20,6 +16,8 @@
 * 유저 및 유저행동(주문,찜,장바구니,최근본,리뷰)
   * python manage.py insert_user_actions
 
+* AI알고리즘 실행
+  * python manage.py run_ai
 
 현재 주문, 찜, 장바구니, 최근목록, 리뷰를 바탕으로한 사용자 분석
 
