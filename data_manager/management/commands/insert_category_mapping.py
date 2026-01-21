@@ -1,3 +1,7 @@
+# 데이터생성기
+# insert_category_mapping.py
+# 상세 계층형 카테고리와 농산물 매핑 데이터를 생성
+# 콘솔에 python manage.py insert_category_mapping 입력
 import sqlite3
 from django.core.management.base import BaseCommand
 from django.conf import settings

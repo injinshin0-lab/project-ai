@@ -1,3 +1,7 @@
+# 데이터생성기
+# insert_user_actions.py
+# 유저 및 유저행동(주문,찜,장바구니,최근본,리뷰)    
+# 콘솔에 python manage.py insert_user_actions
 import sqlite3
 import random
 from datetime import datetime, timedelta

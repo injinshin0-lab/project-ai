@@ -1,3 +1,7 @@
+# 데이터생성기
+# insert_fruits.py
+# Product에 과일 넣기
+# 콘솔에 python manage.py insert_fruits 입력
 import os
 import random
 from django.core.management.base import BaseCommand

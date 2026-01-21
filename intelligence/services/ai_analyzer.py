@@ -1,3 +1,7 @@
+# 협업필터링 알고리즘
+# ai_analyzer.py
+# 콘솔에 python manage.py run_ai 입력
+
 import pandas as pd
 import numpy as np
 import os
