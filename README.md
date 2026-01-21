@@ -10,13 +10,15 @@ pip install -r requirements.txt
 
 데이터 생성기 명령(순서대로 권장)
 
+db 있을경우
+python manage.py migrate --fake-initial
+
+db 없을경우(그냥 ㄴ)
+(!!!!!!!!왠만하면 백엔드에 있을거니까 사용안해도됨!!!!!!!!)
 모델 마이그레이션
-(*** db가 없을경우 (왠만하면 있을거니까 사용안해도됨)***)
 python manage.py makemigrations
 python manage.py migrate
 
-db 있을경우
-python manage.py migrate --fake-initial
 
 가 데이터 생성
 과일상품
