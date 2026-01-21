@@ -13,7 +13,7 @@ pip install -r requirements.txt
 db 있을경우
 python manage.py migrate --fake-initial
 
-db 없을경우(그냥 ㄴ)
+db 없을경우(그냥 쓰지마)
 (!!!!!!!!왠만하면 백엔드에 있을거니까 사용안해도됨!!!!!!!!)
 모델 마이그레이션
 python manage.py makemigrations
