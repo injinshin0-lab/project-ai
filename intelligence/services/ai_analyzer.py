@@ -29,7 +29,7 @@ class AiRecommender:
             
     def collect_data(self):
         # """2단계: 장고 DB의 행동 데이터를 수집하여 가중치 점수 합산"""
-        w = {'order': 5.0, 'wish': 3.0, 'cart': 3.5, 'recent': 0.5}
+        w = {'order': 5.0, 'wish': 3.0, 'cart': 4, 'recent': 1}
         all_data = []
 
         # 주문(order) 데이터 수집 (Bg_Order_item -> Bg_Order 연결)
@@ -69,7 +69,9 @@ class AiRecommender:
         combined = pd.concat(all_data, ignore_index=True)
 
         # 최종 그룹화 및 저장
-        integrated = combined.groupby(['user_id', 'product_id'])['rating'].sum().reset_index()
+        integrated = combined.groupby(['user_id', 'product_id'])['rating'].max().reset_index()
+        print("--- 데이터 샘플 확인 (Max 적용 여부) ---")
+        print(integrated.head(10))
         integrated.to_csv(self.processed_csv, index=False)
         print(f"전처리된 데이터 저장 완료: {len(integrated)}개의 행을 찾았습니다.")
         return True
@@ -125,8 +127,6 @@ class AiRecommender:
             user_ratings = pivot.loc[u_id]
             unseen_items = user_ratings[user_ratings.isna()].index
 
-            
-
             for p_id in unseen_items:
                 # 이웃들 중 해당 아이템에 점수를 남긴 사람들만 추출
                 neighbor_ratings = pivot.loc[nearest_neighbors.index, p_id].dropna()
@@ -151,12 +151,13 @@ class AiRecommender:
                         # 상품 카테고리가 유저의 관심사 리스트에 있으면 가산점 부여
                         category_bonus = 0
                         if product_cat_map.get(p_id) in user_interests:
-                            # 카테고리 점수 + 1.5
-                            category_bonus = 1.5
-                        
+                            # 카테고리 점수
+                            category_bonus = 5
+                            print(f"[관심카테고리 매칭] 유저:{u_id} 상품:{p_id} -> 가산점 적용됨")
+
                         # 3. 최종 하이브리드 점수
                         final_score = cf_score + category_bonus
-
+                       
                         # 나의 평균에 보정된 가중합을 더함
                         result.append({
                             'user_id': u_id, 
@@ -197,41 +198,3 @@ class AiRecommender:
         
         Bg_AI_recommendation.objects.bulk_create(new_records)
         print("DB 업데이트 완료")
-        
-
-
-        # [필수] 외부 DB 적재 함수 호출 추가
-        # self.export_to_external_db(df)
-    # def export_to_external_db(self, df):
-    #     #"""최종 결과를 메인 DB의 Bg_ai_recommendation 테이블로 적재"""
-    #     try:
-    #         conn = sqlite3.connect(self.external_db_path)
-    #         cursor = conn.cursor()
-
-    #         # 1. 테이블명과 컬럼명을 외부 DB 형식에 맞춤
-    #         # df['userid'] 값을 외부 DB의 'user_id' 컬럼에 넣어야 함
-    #         cursor.execute('''CREATE TABLE IF NOT EXISTS Bg_AI_recommendation 
-    #                          (id INTEGER PRIMARY KEY AUTOINCREMENT,
-    #                           user_id INTEGER NOT NULL, 
-    #                           product_id INTEGER NOT NULL, 
-    #                           score REAL NOT NULL,
-    #                           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    #                           expired_at DATETIME)''')
-            
-    #         # 2. 기존 데이터 삭제
-    #         cursor.execute("DELETE FROM Bg_AI_recommendation")
-    #         # ID 값도 초기화하고 싶다면 아래 주석 해제 (선택사항)
-    #         cursor.execute("DELETE FROM sqlite_sequence WHERE name='Bg_AI_recommendation'")
-
-    #         # 3. 데이터 삽입 (df의 컬럼명과 DB 컬럼명 매핑 주의)
-    #         for _, row in df.iterrows():
-    #             cursor.execute(
-    #                 "INSERT INTO Bg_AI_recommendation (user_id, product_id, score) VALUES (?, ?, ?)",
-    #                 (int(row['userid']), int(row['product_id']), float(row['score']))
-    #             )
-            
-    #         conn.commit()
-    #         conn.close()
-    #         print(f"--- 외부 DB(Bg_AI_recommendation) 적재 완료 ---")
-    #     except Exception as e:
-    #         print(f"DB 적재 중 에러 발생: {e}")
