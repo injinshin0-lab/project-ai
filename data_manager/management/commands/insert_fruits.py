@@ -1,3 +1,7 @@
+# 데이터생성기
+# insert_fruits.py
+# Product에 과일 넣기
+# 콘솔에 python manage.py insert_fruits 입력
 import os
 import random
 from django.core.management.base import BaseCommand
@@ -13,14 +17,12 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING('Bg_Product 데이터를 초기화 중...'))
         Bg_Product.objects.all().delete()
         with connection.cursor() as cursor:
-            cursor.execute("DELETE FROM sqlite_sequence WHERE name='Bg_Product';")
+            # cursor.execute("DELETE FROM sqlite_sequence WHERE name='Bg_Product';")
+            cursor.execute("ALTER TABLE bg_product AUTO_INCREMENT = 1;")
 
         # 2. 이미지 물리 경로 설정
         project_root = settings.BASE_DIR
-        dataset_base_path = os.path.join(
-            project_root.parent, "project-back", "uploads", "product", 
-            "fruits-360-100x100-main", "Training"
-        )
+        dataset_base_path = r"C:\ai\Workspace\bogam\storage\product\fruits-360-100x100-main\Training"
 
         if not os.path.exists(dataset_base_path):
             self.stdout.write(self.style.ERROR(f'경로를 찾을 수 없습니다: {dataset_base_path}'))
@@ -99,7 +101,8 @@ class Command(BaseCommand):
                 price=random.randint(5, 50) * 1000,
                 image_url=f"product/fruits-360-100x100-main/Training/{class_name}/{actual_file_name}",
                 content=f"{origin} 산지에서 직송된 신선한 {kor_base_name}입니다.",
-                product_status='SALE'
+                product_status='SALE',
+                view_count=random.randint(0, 2000)
             ))
 
         # 5. DB 일괄 삽입

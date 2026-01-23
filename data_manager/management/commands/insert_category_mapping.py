@@ -1,68 +1,83 @@
-import sqlite3
+# 데이터생성기
+# insert_category_mapping.py
+# 상세 계층형 카테고리와 농산물 매핑 데이터를 생성
+# 콘솔에 python manage.py insert_category_mapping 입력
 from django.core.management.base import BaseCommand
 from django.conf import settings
+from django.db import connection
 
 class Command(BaseCommand):
     help = '상세 계층형 카테고리와 농산물 매핑 데이터를 생성합니다.'
 
     def handle(self, *args, **options):
-        db_path = settings.DATABASES['default']['NAME']
+        with connection.cursor() as cursor:
     
-        self.stdout.write(f"연결 시도 중인 DB 경로: {db_path}")
-        
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+            self.stdout.write("--- 카테고리 초기화 시작 ---")
 
-        self.stdout.write("--- 카테고리 초기화 및 계층형 매핑 시작 ---")
-        
-        # 1. 카테고리 관련 테이블만 초기화
-        # (유저 데이터나 주문 데이터는 건드리지 않고 카테고리 체계만 새로 고침)
-        tables = ['Bg_Interest_category', 'Bg_Category_product_mapping']
-        for table in tables:
-            try:
-                cursor.execute(f"DELETE FROM {table}")
-                cursor.execute(f"DELETE FROM sqlite_sequence WHERE name='{table}'")
-            except: pass
+            # MySQL용 초기화 (FK 제크 해제 후 작업 권장)
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
+            tables = ['bg_interest_category', 'bg_category_product_mapping']
+            for table in tables:
+                cursor.execute(f"TRUNCATE TABLE {table}")
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
 
-        # 2. 로우 데이터 가져오기
-        full_list = self.get_category_raw_data()
+            # 2. 로우 데이터 가져오기
+            full_list = self.get_category_raw_data()
 
-        # 3. 카테고리 계층 삽입
-        cat_id_map = {}
-        current_id = 1
+            # 3. 카테고리 계층 삽입
+            cat_id_map = {}
+            large_id_seq = 1000
+            medium_id_seq = 2000
+            small_id_seq = 3000
 
-        for large, medium, small, items in full_list:
-            if (large, 1) not in cat_id_map:
-                cursor.execute("INSERT INTO Bg_Interest_category (id, category_name, parent_id, depth) VALUES (?,?,?,?)", (current_id, large, None, 1))
-                cat_id_map[(large, 1)] = current_id
-                current_id += 1
-            
-            if (medium, 2) not in cat_id_map:
-                cursor.execute("INSERT INTO Bg_Interest_category (id, category_name, parent_id, depth) VALUES (?,?,?,?)", (current_id, medium, cat_id_map[(large, 1)], 2))
-                cat_id_map[(medium, 2)] = current_id
-                current_id += 1
-            
-            if (small, 3) not in cat_id_map:
-                cursor.execute("INSERT INTO Bg_Interest_category (id, category_name, parent_id, depth) VALUES (?,?,?,?)", (current_id, small, cat_id_map[(medium, 2)], 3))
-                cat_id_map[(small, 3)] = current_id
-                current_id += 1
+            for large, medium, small, items in full_list:
+                if (large, 1) not in cat_id_map:
+                    cursor.execute("INSERT INTO bg_interest_category (id, category_name, parent_id, depth) VALUES (%s,%s,%s,%s)", 
+                                    (large_id_seq, large, None, 1))
+                    cat_id_map[(large, 1)] = large_id_seq
+                    large_id_seq += 1
+                
+                parent_large_id = cat_id_map[(large, 1)]
+                medium_key = (medium, 2, parent_large_id)
 
-        # 4. 상품-카테고리 키워드 매핑
-        cursor.execute("SELECT id, product_name FROM Bg_Product")
-        products = cursor.fetchall()
+                if medium_key not in cat_id_map:
+                    cursor.execute("INSERT INTO bg_interest_category (id, category_name, parent_id, depth) VALUES (%s,%s,%s,%s)", 
+                                    (medium_id_seq, medium,parent_large_id, 2))
+                    cat_id_map[medium_key] = medium_id_seq
+                    medium_id_seq += 1
+                
+                parent_medium_id = cat_id_map[medium_key]
+                custom_small_name = f"{small}[{medium}]" # 이름 합성
+                small_key = (custom_small_name, 3, parent_medium_id)
 
-        mapping_data = []
-        for p_id, p_name in products:
-            for large, medium, small, keywords in full_list:
-                for word in keywords:
-                    if word in p_name: 
-                        mapping_data.append((p_id, cat_id_map[(small, 3)]))
+                if small_key not in cat_id_map:
+                    cursor.execute("INSERT INTO bg_interest_category (id, category_name, parent_id, depth) VALUES (%s,%s,%s,%s)", 
+                                    (small_id_seq, custom_small_name, parent_medium_id, 3))
+                    cat_id_map[small_key] = small_id_seq
+                    small_id_seq += 1
 
-        if mapping_data:
-            cursor.executemany("INSERT INTO Bg_Category_product_mapping (product_id, interest_category_id) VALUES (?,?)", list(set(mapping_data)))
+            # 4. 상품-카테고리 키워드 매핑
+            cursor.execute("SELECT id, product_name FROM bg_product")
+            products = cursor.fetchall()
+            mapping_data = []
 
-        conn.commit()
-        conn.close()
+            for p_id, p_name in products:
+                for large, medium, small, keywords in full_list:
+                    custom_small_name = f"{small}[{medium}]"
+                    large_id = cat_id_map[(large, 1)]
+                    medium_id = cat_id_map[(medium, 2, large_id)]
+                    small_id = cat_id_map[(custom_small_name, 3, medium_id)]
+
+                    target_cat_id = small_id
+
+                    for word in keywords:
+                        if word in p_name: 
+                            mapping_data.append((p_id, target_cat_id))
+
+            if mapping_data:
+                unique_mapping = list(set(mapping_data))
+                cursor.executemany("INSERT IGNORE INTO bg_category_product_mapping (product_id, interest_category_id) VALUES (%s,%s)", unique_mapping)
+
         self.stdout.write(self.style.SUCCESS(f"성공: {len(cat_id_map)}개 카테고리 생성 및 상품 매핑이 완료되었습니다."))
 
 
