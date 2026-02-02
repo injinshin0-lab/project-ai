@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-5-%)=_f&lsr)tptce(%(8xb6=%(-+vxu%@)c02i3&!^93p2h+#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['web.filmal.dev', 'localhost', '127.0.0.1']
 
 
 # Application definition
@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'intelligence',
     'data_manager',
-    # 'api_service',
+    'api_service',
     'rest_framework',
 ]
 
@@ -57,6 +57,7 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
+    "https://web.filmal.dev",
     "http://localhost:3000",
 ]
 
@@ -93,11 +94,11 @@ WSGI_APPLICATION = 'Bogam_Ai_Project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'bogam_db',
+        'NAME': 'bogam',            # bogam_db가 아니라 bogam
         'USER': 'bogam',
-        'PASSWORD': '1234',
-        'HOST': 'localhost',
-        'PORT': '3306',
+        'PASSWORD': 'bogam',
+        'HOST': 'mysql.filmal.dev', # localhost가 아니라 mysql.filmal.dev
+        'PORT': '3307',             # 3306이 아니라 3307
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         },
@@ -149,3 +150,9 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.AllowAny', # 우선 모든 접근 허용 (테스트용)
     ]
 }
+
+# https 환경에서 데이터 전송(POST) 시 보안 에러가 나지 않도록 추가
+CSRF_TRUSTED_ORIGINS = [
+    'https://web.filmal.dev',
+    'http://django-svc.bogam:8000',
+]
